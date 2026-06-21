@@ -1,0 +1,40 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Asset {
+  id           String        @id @default(cuid())
+  ticker       String
+  name         String
+  type         AssetType
+  transactions Transaction[]
+  createdAt    DateTime      @default(now())
+}
+
+model Transaction {
+  id        String          @id @default(cuid())
+  asset     Asset           @relation(fields: [assetId], references: [id])
+  assetId   String
+  type      TransactionType
+  quantity  Decimal
+  price     Decimal
+  date      DateTime
+  notes     String?
+  createdAt DateTime        @default(now())
+}
+
+enum AssetType {
+  STOCK
+  ETF
+  CRYPTO
+}
+
+enum TransactionType {
+  BUY
+  SELL
+}
