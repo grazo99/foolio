@@ -8,6 +8,7 @@ export * from './Dialog';
 export * from './IconButton';
 export * from './Layout';
 export * from './Select';
+export * from './Snackbar';
 export * from './Table';
 export * from './TextField';
 export * from './Typography';

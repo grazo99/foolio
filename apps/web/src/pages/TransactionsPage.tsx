@@ -1,11 +1,18 @@
 import { useEffect, useState } from 'react';
 import {
+  Alert,
   Box,
   Button,
   Chip,
-  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   IconButton,
   Paper,
+  Skeleton,
+  Snackbar,
   Table,
   TableBody,
   TableCell,
@@ -17,8 +24,8 @@ import {
   DeleteIcon,
   AddIcon,
 } from '../components/ui';
-import { Transaction, TransactionType } from '@foolio/types';
-import { fetchTransactions } from '../api/transactions';
+import { ApiError, Transaction, TransactionType } from '@foolio/types';
+import { deleteTransaction, fetchTransactions } from '../api/transactions';
 import TransactionForm from '../components/TransactionForm';
 
 export default function TransactionsPage() {
@@ -29,6 +36,16 @@ export default function TransactionsPage() {
   // Form state
   const [formOpen, setFormOpen] = useState(false);
   const [editTransaction, setEditTransaction] = useState<Transaction | undefined>(undefined);
+
+  // Delete confirmation dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteInProgress, setDeleteInProgress] = useState(false);
+
+  // Snackbar state
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error'>('success');
 
   // Increment this to re-trigger the fetch effect
   const [fetchTick, setFetchTick] = useState(0);
@@ -61,6 +78,12 @@ export default function TransactionsPage() {
     setFetchTick((t) => t + 1);
   }
 
+  function showSnackbar(message: string, severity: 'success' | 'error' = 'success') {
+    setSnackbarMessage(message);
+    setSnackbarSeverity(severity);
+    setSnackbarOpen(true);
+  }
+
   function onNewTransaction() {
     setEditTransaction(undefined);
     setFormOpen(true);
@@ -76,9 +99,46 @@ export default function TransactionsPage() {
     setEditTransaction(undefined);
   }
 
-  function onSaved() {
+  function onSaved(message?: string) {
     loadTransactions();
+    if (message) showSnackbar(message, 'success');
   }
+
+  function onDeleteClick(id: string) {
+    setDeletingId(id);
+    setDeleteDialogOpen(true);
+  }
+
+  function onDeleteCancel() {
+    setDeleteDialogOpen(false);
+    setDeletingId(null);
+  }
+
+  async function onDeleteConfirm() {
+    if (!deletingId) return;
+    setDeleteInProgress(true);
+    try {
+      await deleteTransaction(deletingId);
+      setDeleteDialogOpen(false);
+      setDeletingId(null);
+      loadTransactions();
+      showSnackbar('Transaction deleted', 'success');
+    } catch (err: unknown) {
+      const apiErr = err as ApiError;
+      const raw = apiErr?.message;
+      const message = Array.isArray(raw)
+        ? raw.join(', ')
+        : (raw ?? 'Failed to delete transaction.');
+      setDeleteDialogOpen(false);
+      setDeletingId(null);
+      showSnackbar(message, 'error');
+    } finally {
+      setDeleteInProgress(false);
+    }
+  }
+
+  const SKELETON_ROWS = 5;
+  const TABLE_COLUMNS = 9;
 
   return (
     <Box sx={{ p: 3 }}>
@@ -92,9 +152,34 @@ export default function TransactionsPage() {
       </Box>
 
       {loading && (
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}>
-          <CircularProgress />
-        </Box>
+        <TableContainer component={Paper}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Date</TableCell>
+                <TableCell>Asset</TableCell>
+                <TableCell>Type</TableCell>
+                <TableCell align="right">Quantity</TableCell>
+                <TableCell align="right">Price</TableCell>
+                <TableCell>Currency</TableCell>
+                <TableCell>Provider</TableCell>
+                <TableCell>Notes</TableCell>
+                <TableCell align="center">Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {Array.from({ length: SKELETON_ROWS }).map((_, rowIndex) => (
+                <TableRow key={rowIndex}>
+                  {Array.from({ length: TABLE_COLUMNS }).map((_, colIndex) => (
+                    <TableCell key={colIndex}>
+                      <Skeleton variant="text" />
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
       )}
 
       {error && (
@@ -165,8 +250,12 @@ export default function TransactionsPage() {
                       >
                         <EditIcon fontSize="small" />
                       </IconButton>
-                      {/* TODO Task 4: wire up onClick to open delete confirmation */}
-                      <IconButton size="small" aria-label="delete" color="error">
+                      <IconButton
+                        size="small"
+                        aria-label="delete"
+                        color="error"
+                        onClick={() => onDeleteClick(tx.id)}
+                      >
                         <DeleteIcon fontSize="small" />
                       </IconButton>
                     </Box>
@@ -177,6 +266,43 @@ export default function TransactionsPage() {
           </Table>
         </TableContainer>
       )}
+
+      {/* Delete confirmation dialog */}
+      <Dialog open={deleteDialogOpen} onClose={onDeleteCancel}>
+        <DialogTitle>Delete transaction?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>This action cannot be undone.</DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={onDeleteCancel} disabled={deleteInProgress}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={onDeleteConfirm}
+            disabled={deleteInProgress}
+          >
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Feedback snackbar */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={3000}
+        onClose={() => setSnackbarOpen(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setSnackbarOpen(false)}
+          severity={snackbarSeverity}
+          sx={{ width: '100%' }}
+        >
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
 
       <TransactionForm
         open={formOpen}

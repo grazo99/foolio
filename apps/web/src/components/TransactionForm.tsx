@@ -45,7 +45,7 @@ interface ProviderOption {
 interface TransactionFormProps {
   open: boolean;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (message?: string) => void;
   transaction?: Transaction;
 }
 
@@ -202,7 +202,7 @@ function TransactionFormInner({ open, onClose, onSaved, transaction }: Transacti
         await createTransaction(dto);
       }
 
-      onSaved();
+      onSaved('Transaction saved');
       onClose();
     } catch (err: unknown) {
       const message =
