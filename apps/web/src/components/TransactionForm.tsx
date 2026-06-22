@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Autocomplete,
   Box,
@@ -16,6 +16,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import { createFilterOptions } from '@mui/material/Autocomplete';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs, { Dayjs } from 'dayjs';
 import { Asset, AssetType, Currency, Provider, Transaction, TransactionType } from '@foolio/types';
@@ -25,6 +26,9 @@ import { createTransaction, updateTransaction, CreateTransactionDto } from '../a
 
 const ADD_NEW_ASSET_OPTION = '__ADD_NEW_ASSET__';
 const ADD_NEW_PROVIDER_OPTION = '__ADD_NEW_PROVIDER__';
+
+const assetFilterOptions = createFilterOptions<AssetOption>();
+const providerFilterOptions = createFilterOptions<ProviderOption>();
 
 interface AssetOption {
   id: string;
@@ -90,21 +94,21 @@ function TransactionFormInner({ open, onClose, onSaved, transaction }: Transacti
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
-
-  // Abort controller for async loads
-  const abortRef = useRef<AbortController | null>(null);
+  const [assetFetchError, setAssetFetchError] = useState<string | null>(null);
 
   // Load assets and providers when dialog opens
   useEffect(() => {
     if (!open) return;
     const controller = new AbortController();
-    abortRef.current = controller;
 
     fetchAssets()
       .then((data) => {
         if (!controller.signal.aborted) setAssets(data);
       })
-      .catch(() => {});
+      .catch(() => {
+        if (!controller.signal.aborted)
+          setAssetFetchError('Failed to load assets. Please close and try again.');
+      });
 
     fetchProviders()
       .then((data) => {
@@ -216,6 +220,11 @@ function TransactionFormInner({ open, onClose, onSaved, transaction }: Transacti
       <DialogContent dividers>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
           {/* Asset */}
+          {assetFetchError && (
+            <Typography color="error" variant="body2">
+              {assetFetchError}
+            </Typography>
+          )}
           <Autocomplete
             options={assetOptions}
             getOptionLabel={(o) => o.label}
@@ -225,6 +234,14 @@ function TransactionFormInner({ open, onClose, onSaved, transaction }: Transacti
                 ? { id: ADD_NEW_ASSET_OPTION, label: 'Add new asset...', isAddNew: true }
                 : selectedAsset
             }
+            filterOptions={(options, params) => {
+              const filtered = assetFilterOptions(options, params);
+              const sentinel = options.find((o) => o.id === ADD_NEW_ASSET_OPTION);
+              if (sentinel && !filtered.some((o) => o.id === sentinel.id)) {
+                return [sentinel, ...filtered];
+              }
+              return filtered;
+            }}
             onChange={(_e, newVal) => {
               if (newVal?.isAddNew) {
                 setShowNewAsset(true);
@@ -321,7 +338,10 @@ function TransactionFormInner({ open, onClose, onSaved, transaction }: Transacti
             type="number"
             required
             value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
+            onChange={(e) => {
+              setQuantity(e.target.value);
+              setValidationErrors((prev) => ({ ...prev, quantity: '' }));
+            }}
             error={Boolean(validationErrors.quantity)}
             helperText={validationErrors.quantity}
             inputProps={{ min: 0, step: 'any' }}
@@ -333,7 +353,10 @@ function TransactionFormInner({ open, onClose, onSaved, transaction }: Transacti
             type="number"
             required
             value={price}
-            onChange={(e) => setPrice(e.target.value)}
+            onChange={(e) => {
+              setPrice(e.target.value);
+              setValidationErrors((prev) => ({ ...prev, price: '' }));
+            }}
             error={Boolean(validationErrors.price)}
             helperText={validationErrors.price}
             inputProps={{ min: 0, step: 'any' }}
@@ -388,6 +411,14 @@ function TransactionFormInner({ open, onClose, onSaved, transaction }: Transacti
                   }
                 : selectedProvider
             }
+            filterOptions={(options, params) => {
+              const filtered = providerFilterOptions(options, params);
+              const sentinel = options.find((o) => o.id === ADD_NEW_PROVIDER_OPTION);
+              if (sentinel && !filtered.some((o) => o.id === sentinel.id)) {
+                return [sentinel, ...filtered];
+              }
+              return filtered;
+            }}
             onChange={(_e, newVal) => {
               if (newVal?.isAddNew) {
                 setShowNewProvider(true);
