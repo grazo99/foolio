@@ -95,6 +95,7 @@ function TransactionFormInner({ open, onClose, onSaved, transaction }: Transacti
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [assetFetchError, setAssetFetchError] = useState<string | null>(null);
+  const [providerFetchError, setProviderFetchError] = useState<string | null>(null);
 
   // Load assets and providers when dialog opens
   useEffect(() => {
@@ -114,7 +115,10 @@ function TransactionFormInner({ open, onClose, onSaved, transaction }: Transacti
       .then((data) => {
         if (!controller.signal.aborted) setProviders(data);
       })
-      .catch(() => {});
+      .catch(() => {
+        if (!controller.signal.aborted)
+          setProviderFetchError('Failed to load providers. You can still add a new one.');
+      });
 
     return () => {
       controller.abort();
@@ -398,6 +402,11 @@ function TransactionFormInner({ open, onClose, onSaved, transaction }: Transacti
           </FormControl>
 
           {/* Provider */}
+          {providerFetchError && (
+            <Typography color="warning.main" variant="body2">
+              {providerFetchError}
+            </Typography>
+          )}
           <Autocomplete
             options={providerOptions}
             getOptionLabel={(o) => o.label}

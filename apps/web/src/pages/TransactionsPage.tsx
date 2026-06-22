@@ -268,7 +268,11 @@ export default function TransactionsPage() {
       )}
 
       {/* Delete confirmation dialog */}
-      <Dialog open={deleteDialogOpen} onClose={onDeleteCancel}>
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={deleteInProgress ? undefined : onDeleteCancel}
+        disableEscapeKeyDown={deleteInProgress}
+      >
         <DialogTitle>Delete transaction?</DialogTitle>
         <DialogContent>
           <DialogContentText>This action cannot be undone.</DialogContentText>
