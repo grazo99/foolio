@@ -1,11 +1,5 @@
-import {
-  CssBaseline,
-  ThemeProvider,
-  createTheme,
-  AppBar,
-  Toolbar,
-  Typography,
-} from '@mui/material';
+import { CssBaseline, ThemeProvider, createTheme } from '@mui/material';
+import { AppBar, Toolbar, Typography } from './components/ui';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { BrowserRouter, Routes, Route, Navigate, Link } from 'react-router-dom';

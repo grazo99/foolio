@@ -13,10 +13,10 @@ import {
   TableHead,
   TableRow,
   Typography,
-} from '@mui/material';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
-import AddIcon from '@mui/icons-material/Add';
+  EditIcon,
+  DeleteIcon,
+  AddIcon,
+} from '../components/ui';
 import { Transaction, TransactionType } from '@foolio/types';
 import { fetchTransactions } from '../api/transactions';
 import TransactionForm from '../components/TransactionForm';
