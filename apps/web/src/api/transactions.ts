@@ -1,4 +1,4 @@
-import { Transaction, TransactionType } from '@foolio/types';
+import { Transaction, TransactionType, Currency } from '@foolio/types';
 import { get, post, patch, del } from './client';
 
 export interface CreateTransactionDto {
@@ -7,7 +7,7 @@ export interface CreateTransactionDto {
   quantity: number;
   price: number;
   date: string;
-  currency?: string;
+  currency?: Currency;
   providerId?: string | null;
   notes?: string;
 }

@@ -4,8 +4,17 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(path, options);
 
   if (!response.ok) {
-    const error: ApiError = await response.json();
-    throw error;
+    let errorBody: ApiError;
+    try {
+      errorBody = await response.json();
+    } catch {
+      errorBody = {
+        statusCode: response.status,
+        message: response.statusText,
+        error: 'Unknown error',
+      };
+    }
+    throw errorBody;
   }
 
   return response.json() as Promise<T>;
