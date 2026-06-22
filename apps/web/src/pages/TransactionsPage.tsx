@@ -19,24 +19,66 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import { Transaction, TransactionType } from '@foolio/types';
 import { fetchTransactions } from '../api/transactions';
+import TransactionForm from '../components/TransactionForm';
 
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Form state
+  const [formOpen, setFormOpen] = useState(false);
+  const [editTransaction, setEditTransaction] = useState<Transaction | undefined>(undefined);
+
+  // Increment this to re-trigger the fetch effect
+  const [fetchTick, setFetchTick] = useState(0);
+
   useEffect(() => {
+    const controller = new AbortController();
+
     fetchTransactions()
       .then((data) => {
-        setTransactions(data);
+        if (!controller.signal.aborted) {
+          setTransactions(data);
+          setError(null);
+          setLoading(false);
+        }
       })
       .catch(() => {
-        setError('Failed to load transactions.');
-      })
-      .finally(() => {
-        setLoading(false);
+        if (!controller.signal.aborted) {
+          setError('Failed to load transactions.');
+          setLoading(false);
+        }
       });
-  }, []);
+
+    return () => {
+      controller.abort();
+    };
+  }, [fetchTick]);
+
+  function loadTransactions() {
+    setLoading(true);
+    setFetchTick((t) => t + 1);
+  }
+
+  function onNewTransaction() {
+    setEditTransaction(undefined);
+    setFormOpen(true);
+  }
+
+  function onEditTransaction(tx: Transaction) {
+    setEditTransaction(tx);
+    setFormOpen(true);
+  }
+
+  function onFormClose() {
+    setFormOpen(false);
+    setEditTransaction(undefined);
+  }
+
+  function onSaved() {
+    loadTransactions();
+  }
 
   return (
     <Box sx={{ p: 3 }}>
@@ -44,8 +86,7 @@ export default function TransactionsPage() {
         <Typography variant="h5" component="h1">
           Transactions
         </Typography>
-        {/* TODO Task 3: wire up onClick to open create form */}
-        <Button variant="contained" startIcon={<AddIcon />}>
+        <Button variant="contained" startIcon={<AddIcon />} onClick={onNewTransaction}>
           New Transaction
         </Button>
       </Box>
@@ -67,8 +108,9 @@ export default function TransactionsPage() {
           <Typography variant="body1" color="text.secondary">
             No transactions yet. Add your first one!
           </Typography>
-          {/* TODO Task 3: wire up onClick to open create form */}
-          <Button variant="outlined">Add Transaction</Button>
+          <Button variant="outlined" onClick={onNewTransaction}>
+            Add Transaction
+          </Button>
         </Box>
       )}
 
@@ -116,8 +158,11 @@ export default function TransactionsPage() {
                   <TableCell>{tx.notes ?? '—'}</TableCell>
                   <TableCell align="center">
                     <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
-                      {/* TODO Task 3: wire up onClick to open edit form */}
-                      <IconButton size="small" aria-label="edit">
+                      <IconButton
+                        size="small"
+                        aria-label="edit"
+                        onClick={() => onEditTransaction(tx)}
+                      >
                         <EditIcon fontSize="small" />
                       </IconButton>
                       {/* TODO Task 4: wire up onClick to open delete confirmation */}
@@ -132,6 +177,13 @@ export default function TransactionsPage() {
           </Table>
         </TableContainer>
       )}
+
+      <TransactionForm
+        open={formOpen}
+        onClose={onFormClose}
+        onSaved={onSaved}
+        transaction={editTransaction}
+      />
     </Box>
   );
 }
