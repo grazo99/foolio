@@ -68,6 +68,20 @@ describe('AssetsController', () => {
         .send({ ticker: 'AAPL', name: 'Apple Inc.', type: 'INVALID' })
         .expect(400);
     });
+
+    it('should return 409 when ticker already exists', async () => {
+      const { Prisma } = jest.requireActual('@prisma/client');
+      const error = new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+        code: 'P2002',
+        clientVersion: '5.0.0',
+      });
+      mockPrismaService.asset.create.mockRejectedValue(error);
+
+      await request(app.getHttpServer())
+        .post('/assets')
+        .send({ ticker: 'AAPL', name: 'Apple Inc.', type: 'STOCK' })
+        .expect(409);
+    });
   });
 
   describe('GET /assets', () => {

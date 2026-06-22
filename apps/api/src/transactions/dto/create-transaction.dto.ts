@@ -1,4 +1,12 @@
-import { IsString, IsNotEmpty, IsEnum, IsNumber, IsOptional } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsEnum,
+  IsNumber,
+  IsOptional,
+  IsPositive,
+  IsDateString,
+} from 'class-validator';
 import { TransactionType } from '@prisma/client';
 
 export class CreateTransactionDto {
@@ -10,13 +18,14 @@ export class CreateTransactionDto {
   type: TransactionType;
 
   @IsNumber()
+  @IsPositive()
   quantity: number;
 
   @IsNumber()
+  @IsPositive()
   price: number;
 
-  @IsString()
-  @IsNotEmpty()
+  @IsDateString()
   date: string;
 
   @IsString()
@@ -24,6 +33,7 @@ export class CreateTransactionDto {
   currency: string;
 
   @IsString()
+  @IsNotEmpty()
   @IsOptional()
   providerId?: string;
 

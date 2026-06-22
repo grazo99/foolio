@@ -15,6 +15,15 @@ export class TransactionsService {
       throw new BadRequestException('Asset not found');
     }
 
+    if (dto.providerId) {
+      const provider = await this.prisma.provider.findUnique({
+        where: { id: dto.providerId },
+      });
+      if (!provider) {
+        throw new BadRequestException('Provider not found');
+      }
+    }
+
     return this.prisma.transaction.create({
       data: {
         assetId: dto.assetId,
@@ -53,6 +62,24 @@ export class TransactionsService {
     });
     if (!existing) {
       throw new NotFoundException('Transaction not found');
+    }
+
+    if (dto.assetId) {
+      const asset = await this.prisma.asset.findUnique({
+        where: { id: dto.assetId },
+      });
+      if (!asset) {
+        throw new BadRequestException('Asset not found');
+      }
+    }
+
+    if (dto.providerId) {
+      const provider = await this.prisma.provider.findUnique({
+        where: { id: dto.providerId },
+      });
+      if (!provider) {
+        throw new BadRequestException('Provider not found');
+      }
     }
 
     const data: Record<string, unknown> = { ...dto };

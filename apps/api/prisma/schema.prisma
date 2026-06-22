@@ -9,7 +9,7 @@ datasource db {
 
 model Asset {
   id           String        @id @default(cuid())
-  ticker       String
+  ticker       String        @unique
   name         String
   type         AssetType
   transactions Transaction[]

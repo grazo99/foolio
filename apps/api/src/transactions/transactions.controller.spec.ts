@@ -19,6 +19,9 @@ describe('TransactionsController', () => {
     asset: {
       findUnique: jest.fn(),
     },
+    provider: {
+      findUnique: jest.fn(),
+    },
   };
 
   beforeAll(async () => {
@@ -74,6 +77,7 @@ describe('TransactionsController', () => {
   describe('POST /transactions', () => {
     it('should create a transaction and return 201', async () => {
       mockPrismaService.asset.findUnique.mockResolvedValue(mockAsset);
+      mockPrismaService.provider.findUnique.mockResolvedValue(mockProvider);
       mockPrismaService.transaction.create.mockResolvedValue(mockTransaction);
 
       const response = await request(app.getHttpServer())
@@ -119,6 +123,66 @@ describe('TransactionsController', () => {
           type: 'BUY',
           quantity: 10,
           price: 150.5,
+          currency: 'USD',
+          date: '2024-01-15',
+        })
+        .expect(400);
+    });
+
+    it('should return 400 when providerId does not exist', async () => {
+      mockPrismaService.asset.findUnique.mockResolvedValue(mockAsset);
+      mockPrismaService.provider.findUnique.mockResolvedValue(null);
+
+      await request(app.getHttpServer())
+        .post('/transactions')
+        .send({
+          assetId: 'asset-1',
+          type: 'BUY',
+          quantity: 10,
+          price: 150.5,
+          currency: 'USD',
+          date: '2024-01-15',
+          providerId: 'nonexistent',
+        })
+        .expect(400);
+    });
+
+    it('should return 400 when date is not a valid ISO date', async () => {
+      await request(app.getHttpServer())
+        .post('/transactions')
+        .send({
+          assetId: 'asset-1',
+          type: 'BUY',
+          quantity: 10,
+          price: 150.5,
+          currency: 'USD',
+          date: 'not-a-date',
+        })
+        .expect(400);
+    });
+
+    it('should return 400 when quantity is negative', async () => {
+      await request(app.getHttpServer())
+        .post('/transactions')
+        .send({
+          assetId: 'asset-1',
+          type: 'BUY',
+          quantity: -5,
+          price: 150.5,
+          currency: 'USD',
+          date: '2024-01-15',
+        })
+        .expect(400);
+    });
+
+    it('should return 400 when price is zero', async () => {
+      await request(app.getHttpServer())
+        .post('/transactions')
+        .send({
+          assetId: 'asset-1',
+          type: 'BUY',
+          quantity: 10,
+          price: 0,
           currency: 'USD',
           date: '2024-01-15',
         })
@@ -184,6 +248,16 @@ describe('TransactionsController', () => {
         data: { quantity: 20 },
         include: { asset: true, provider: true },
       });
+    });
+
+    it('should return 400 when updating with non-existent assetId', async () => {
+      mockPrismaService.transaction.findUnique.mockResolvedValue(mockTransaction);
+      mockPrismaService.asset.findUnique.mockResolvedValue(null);
+
+      await request(app.getHttpServer())
+        .patch('/transactions/tx-1')
+        .send({ assetId: 'nonexistent' })
+        .expect(400);
     });
 
     it('should return 404 when updating non-existent transaction', async () => {
