@@ -16,16 +16,26 @@ model Asset {
   createdAt    DateTime      @default(now())
 }
 
+model Provider {
+  id           String        @id @default(cuid())
+  name         String        @unique
+  createdAt    DateTime      @default(now())
+  transactions Transaction[]
+}
+
 model Transaction {
-  id        String          @id @default(cuid())
-  asset     Asset           @relation(fields: [assetId], references: [id])
-  assetId   String
-  type      TransactionType
-  quantity  Decimal
-  price     Decimal
-  date      DateTime
-  notes     String?
-  createdAt DateTime        @default(now())
+  id         String          @id @default(cuid())
+  asset      Asset           @relation(fields: [assetId], references: [id])
+  assetId    String
+  type       TransactionType
+  quantity   Decimal
+  price      Decimal
+  currency   String          @default("USD")
+  date       DateTime
+  notes      String?
+  provider   Provider?       @relation(fields: [providerId], references: [id])
+  providerId String?
+  createdAt  DateTime        @default(now())
 }
 
 enum AssetType {
