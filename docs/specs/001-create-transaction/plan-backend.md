@@ -16,19 +16,89 @@
 
 ### API Endpoints
 
-| Method   | Path                    | Request Body                                                                | Response                              |
-| -------- | ----------------------- | --------------------------------------------------------------------------- | ------------------------------------- |
-| `POST`   | `/api/assets`           | `{ ticker, name, type }`                                                    | Asset                                 |
-| `GET`    | `/api/assets`           | —                                                                           | Asset[]                               |
-| `POST`   | `/api/providers`        | `{ name }`                                                                  | Provider                              |
-| `GET`    | `/api/providers`        | —                                                                           | Provider[]                            |
-| `POST`   | `/api/transactions`     | `{ assetId, type?, quantity, price, date, currency?, providerId?, notes? }` | Transaction (with asset & provider)   |
-| `GET`    | `/api/transactions`     | —                                                                           | Transaction[] (with asset & provider) |
-| `GET`    | `/api/transactions/:id` | —                                                                           | Transaction (with asset & provider)   |
-| `PATCH`  | `/api/transactions/:id` | Partial of create body                                                      | Transaction (with asset & provider)   |
-| `DELETE` | `/api/transactions/:id` | —                                                                           | `{ deleted: true }`                   |
+| Method   | Path                    | Request Body                                                              | Response                              |
+| -------- | ----------------------- | ------------------------------------------------------------------------- | ------------------------------------- |
+| `POST`   | `/api/assets`           | `{ ticker, name, type }`                                                  | Asset                                 |
+| `GET`    | `/api/assets`           | —                                                                         | Asset[]                               |
+| `POST`   | `/api/providers`        | `{ name }`                                                                | Provider                              |
+| `GET`    | `/api/providers`        | —                                                                         | Provider[]                            |
+| `POST`   | `/api/transactions`     | `{ assetId, type, quantity, price, date, currency, providerId?, notes? }` | Transaction (with asset & provider)   |
+| `GET`    | `/api/transactions`     | —                                                                         | Transaction[] (with asset & provider) |
+| `GET`    | `/api/transactions/:id` | —                                                                         | Transaction (with asset & provider)   |
+| `PATCH`  | `/api/transactions/:id` | Partial of create body                                                    | Transaction (with asset & provider)   |
+| `DELETE` | `/api/transactions/:id` | —                                                                         | `{ deleted: true }`                   |
 
-**Defaults:** `type` → `BUY`, `date` → today, `currency` → `USD`
+**Defaults handled by frontend:** `type` → `BUY`, `date` → today, `currency` → `USD`
+
+---
+
+## Task 0: Infrastructure — Dependencies, ValidationPipe, Jest configs
+
+**Goal:** Set up all prerequisites so subsequent tasks can use validation and testing.
+
+**Step 1: Install production dependencies**
+
+Run: `cd apps/api && pnpm add class-validator class-transformer`
+
+**Step 2: Install test dependencies**
+
+Run: `cd apps/api && pnpm add -D jest ts-jest @types/jest @nestjs/testing supertest @types/supertest`
+
+**Step 3: Add ValidationPipe to main.ts**
+
+Modify `apps/api/src/main.ts` — add:
+
+```typescript
+import { ValidationPipe } from '@nestjs/common';
+// ... inside bootstrap():
+app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
+```
+
+**Step 4: Create jest.config.ts**
+
+Create `apps/api/jest.config.ts`:
+
+```typescript
+import type { Config } from 'jest';
+
+const config: Config = {
+  moduleFileExtensions: ['js', 'json', 'ts'],
+  rootDir: 'src',
+  testRegex: '.*\\.spec\\.ts$',
+  transform: { '^.+\\.(t|j)s$': 'ts-jest' },
+  collectCoverageFrom: ['**/*.(t|j)s'],
+  coverageDirectory: '../coverage',
+  testEnvironment: 'node',
+};
+
+export default config;
+```
+
+**Step 5: Create jest-e2e.json**
+
+Create `apps/api/test/jest-e2e.json`:
+
+```json
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": ".",
+  "testEnvironment": "node",
+  "testRegex": ".e2e-spec.ts$",
+  "transform": { "^.+\\.(t|j)s$": "ts-jest" }
+}
+```
+
+**Step 6: Verify jest runs**
+
+Run: `cd apps/api && pnpm jest --version`
+Expected: version number printed
+
+**Step 7: Commit**
+
+```bash
+git add apps/api/package.json apps/api/src/main.ts apps/api/jest.config.ts apps/api/test/jest-e2e.json pnpm-lock.yaml
+git commit -m "chore: add validation, testing deps, jest configs"
+```
 
 ---
 
@@ -44,7 +114,7 @@ Add to schema:
 
 ```prisma
 model Provider {
-  id           String        @id @default(uuid())
+  id           String        @id @default(cuid())
   name         String        @unique
   createdAt    DateTime      @default(now())
   transactions Transaction[]
@@ -106,9 +176,11 @@ Expected: FAIL (modules not found)
 **Step 3: Implement DTO, service, controller, module**
 
 - `CreateProviderDto`: `name: string` with `@IsString()` and `@IsNotEmpty()` validators
-- `ProvidersService`: `create(dto)` and `findAll()` using PrismaService
+- `ProvidersService`:
+  - `create(dto)`: wraps `prisma.provider.create` in try/catch — catches Prisma `P2002` (unique constraint) and throws `ConflictException`
+  - `findAll()`: returns all providers
 - `ProvidersController`: `@Post()` and `@Get()` endpoints
-- `ProvidersModule`: imports PrismaModule, provides service, declares controller
+- `ProvidersModule`: provides service, declares controller
 - Register in `AppModule`
 
 **Step 4: Run test to verify it passes**
@@ -150,9 +222,10 @@ Expected: FAIL
 
 **Step 3: Implement**
 
-- `CreateAssetDto`: `ticker`, `name`, `type` with class-validator decorators
+- `CreateAssetDto`: `ticker`, `name`, `type` with class-validator decorators. Use `@IsEnum(AssetType)` with the Prisma-generated enum.
 - `AssetsService`: `create(dto)` and `findAll()` using PrismaService
 - `AssetsController`: `@Post()` and `@Get()` endpoints
+- Create `AssetsModule`, register in `AppModule`
 - Note: Ticker validation against external API is out of scope for this task (will be added later)
 
 **Step 4: Run test to verify it passes**
@@ -163,7 +236,7 @@ Expected: PASS
 **Step 5: Commit**
 
 ```bash
-git add apps/api/src/assets/
+git add apps/api/src/assets/ apps/api/src/app.module.ts
 git commit -m "feat: add asset create and list endpoints"
 ```
 
@@ -184,7 +257,7 @@ Create or modify: `apps/api/src/transactions/transactions.controller.spec.ts`
 
 Test that:
 
-- `POST /transactions` creates a transaction with defaults (type=BUY, currency=USD, date=today)
+- `POST /transactions` creates a transaction (all required fields sent by caller)
 - `GET /transactions` returns list with nested asset and provider
 - `GET /transactions/:id` returns single transaction
 - `PATCH /transactions/:id` updates fields
@@ -199,10 +272,16 @@ Expected: FAIL
 
 **Step 3: Implement**
 
-- `CreateTransactionDto`: `assetId` (required), `type?` (defaults BUY), `quantity`, `price`, `date?` (defaults today), `currency?` (defaults USD), `providerId?`, `notes?`
+- `CreateTransactionDto`: `assetId` (required), `type` (required, `@IsEnum(TransactionType)`), `quantity` (required), `price` (required), `date` (required, ISO string), `currency` (required, `@IsString()`), `providerId?` (optional), `notes?` (optional)
 - `UpdateTransactionDto`: PartialType of CreateTransactionDto
-- `TransactionsService`: `create`, `findAll`, `findOne`, `update`, `remove` — all queries include `{ asset: true, provider: true }`
+- `TransactionsService`:
+  - `create`: verify asset exists first (`prisma.asset.findUnique`), throw `BadRequestException` if not found. Parse `date` string to `Date` before Prisma insert. Include `{ asset: true, provider: true }` in response.
+  - `findAll`: include `{ asset: true, provider: true }`
+  - `findOne`: include `{ asset: true, provider: true }`, throw `NotFoundException` if not found
+  - `update`: throw `NotFoundException` if not found, include relations in response
+  - `remove`: throw `NotFoundException` if not found, return `{ deleted: true }`
 - `TransactionsController`: full CRUD with proper HTTP status codes
+- Create `TransactionsModule`, register in `AppModule`
 
 **Step 4: Run test to verify it passes**
 
@@ -212,7 +291,7 @@ Expected: PASS
 **Step 5: Commit**
 
 ```bash
-git add apps/api/src/transactions/
+git add apps/api/src/transactions/ apps/api/src/app.module.ts
 git commit -m "feat: add full CRUD for transactions"
 ```
 
@@ -238,7 +317,7 @@ Full flow:
 
 **Step 2: Run e2e test**
 
-Run: `cd apps/api && pnpm jest --config jest-e2e.json transactions.e2e --verbose`
+Run: `cd apps/api && pnpm jest --config test/jest-e2e.json transactions.e2e --verbose`
 Expected: PASS (all prior tasks must be complete)
 
 **Step 3: Commit**
